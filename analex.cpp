@@ -2,7 +2,7 @@
 
 using namespace std;
 
-char prox_char;
+char prox_char = ' ';
 string simbolo;
 int linha;
 ifstream arquivo;
@@ -21,7 +21,7 @@ map<string,string> dic_simb = {{".","C_PONTO"},{";","C_PONTO_VIRGULA"},{",","C_V
 {"(","C_ABRE_PAR"},{")","C_FECHA_PAR"},{":","C_DOIS_PONTOS"},{"=","C_IGUAL"},
 {"<","C_MENOR"},{">","C_MAIOR"},{"+","C_SOMA"},{"-","C_SUB"},{"*","C_MULT"},{":=","C_ATRIB"}};
 
-int proximo(){
+void proximo(){
     char c;
     arquivo.get(c);
     //quebra de linha
@@ -35,7 +35,6 @@ int proximo(){
         terminar = true;
     }
     prox_char = toupper(c);
-    return 1;
 }
 
 string codigo(string in, int is_simb){
@@ -56,6 +55,7 @@ void erro(int flag){
         break;
     }
     arquivo.close();
+    fclose(out);
     exit(0);
 }
 
@@ -93,10 +93,8 @@ void analisador_lexico(){
         }while(isalnum(prox_char) && !terminar);     //enquanto prox_char é uma letra ou um numero
         if(reservadas.find(atomo) != reservadas.end()){  //se atomo é uma palavra reservada
             simbolo = codigo(atomo,0);
-            //if(prox_char == '.')    //END. - Final do programa
-            //    terminar = true;
         }else
-            simbolo = atomo;            //identificador
+            simbolo = "ID_"+atomo;            //identificador
 
     //numero
     }else if(isdigit(prox_char)){       //se prox_char é um digito
@@ -107,7 +105,7 @@ void analisador_lexico(){
         if(isalpha(prox_char)){         //se prox_char é uma letra
             erro(1);
         }
-        simbolo = atomo;                //numero
+        simbolo = "NUM_"+atomo;                //numero
     }else{
         if(!terminar)                   //se não for um caracter de fim de arquivo - erro
             erro(2);
@@ -125,9 +123,8 @@ int main(){
     cout << "Nome do arquivo de entrada: " << flush;
     cin.get(str,256);
     arquivo.open(str);
-    //primeira linha, e primeiro caracter
-    fprintf(out,"%d ",linha);
-    proximo();          
+    //primeira linha
+    fprintf(out,"%d ",linha);          
     //enquanto o arquivo não chegar ao fim
     while(!terminar){
         analisador_lexico();
