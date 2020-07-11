@@ -6,7 +6,8 @@ char prox_char;
 string simbolo;
 int linha;
 ifstream arquivo;
-bool pula_linha = false;
+bool pula_linha = false, terminar = false;
+FILE *out = fopen("tokens.txt","w");
 
 //conjunto de caracteres especiais
 set<char> spec_char = {'.',';',',','(',')',':','=','<','>','+','-','*'};
@@ -24,16 +25,14 @@ int proximo(){
     char c;
     arquivo.get(c);
     //quebra de linha
-    if(c == '\n'/* && arquivo.get(c)*/){
+    if(c == '\n'){
         linha++;
        pula_linha = true;
     }
 
     //acabou o arquivo
     if(arquivo.eof()){   
-        arquivo.close();      
-        exit(0);
-        return 0;
+        terminar = true;
     }
     prox_char = toupper(c);
     return 1;
@@ -47,20 +46,77 @@ string codigo(string in, int is_simb){
 }
 
 void erro(int flag){
-    //cout << "Erro na linha " << linha << ": " << flush;
     printf("\n\nErro na linha %d: ",linha);
     switch(flag){
         case 1:
-            //cout << "Identificador ou numero mal formatado\n" << flush;
             printf("Identificador ou numero mal formatado\n");
         break;
         case 2:
-            //cout << "Simbolo especial desconhecido\n" << flush;
             printf("Simbolo especial desconhecido\n");
         break;
     }
     arquivo.close();
     exit(0);
+}
+
+void analisador_lexico(){
+    //se for um espaço vazio, ignorar
+    string atomo;
+    while((prox_char == ' ' || prox_char == '\t' || prox_char == '\n') && !terminar){
+        if(pula_linha)
+            fprintf(out,"\n%d ",linha);
+            pula_linha = false;
+        proximo();
+    }
+    
+    if(terminar)
+        return;
+
+    //simbolos especiais
+    if(spec_char.find(prox_char) != spec_char.end()){   //verifica se prox_char está no conjunto spec_char
+        string s;
+        s.push_back(prox_char);     //s = prox_char
+        proximo();
+        if(s.compare(":") == 0){    //se s == ':'
+            if(prox_char == '='){
+                s.push_back('=');   //s = ':='
+                proximo();
+            }
+        }
+        simbolo = codigo(s,1);
+        
+    //palavra reservada ou identificador
+    }else if(isalpha(prox_char)){       //se prox_char é uma letra
+        do{
+            atomo.push_back(prox_char);
+            proximo();
+        }while(isalnum(prox_char) && !terminar);     //enquanto prox_char é uma letra ou um numero
+        if(reservadas.find(atomo) != reservadas.end()){  //se atomo é uma palavra reservada
+            simbolo = codigo(atomo,0);
+            //if(prox_char == '.')    //END. - Final do programa
+            //    terminar = true;
+        }else
+            simbolo = atomo;            //identificador
+
+    //numero
+    }else if(isdigit(prox_char)){       //se prox_char é um digito
+        do{
+            atomo.push_back(prox_char);
+            proximo();
+        }while(isdigit(prox_char) && !terminar);
+        if(isalpha(prox_char)){         //se prox_char é uma letra
+            erro(1);
+        }
+        simbolo = atomo;                //numero
+    }else{
+        if(!terminar)                   //se não for um caracter de fim de arquivo - erro
+            erro(2);
+    }
+    fprintf(out,"%s ",simbolo.c_str());
+    if(pula_linha){
+        fprintf(out,"\n%d ",linha);
+        pula_linha = false;
+    }
 }
 
 int main(){
@@ -69,64 +125,13 @@ int main(){
     cout << "Nome do arquivo de entrada: " << flush;
     cin.get(str,256);
     arquivo.open(str);
-    //cout << linha + " ";
-    printf("%d ",linha);
-    proximo();
+    //primeira linha, e primeiro caracter
+    fprintf(out,"%d ",linha);
+    proximo();          
     //enquanto o arquivo não chegar ao fim
-    while(true){
-        //se for um espaço vazio, ignorar
-        string atomo;
-        while(prox_char == ' ' || prox_char == '\t' || prox_char == '\n'){
-            if(pula_linha)
-                printf("\n%d ",linha);
-                pula_linha = false;
-            proximo();
-        }
-        
-        //simbolos especiais
-        if(spec_char.find(prox_char) != spec_char.end()){   //verifica se prox_char está no conjunto spec_char
-            string s;
-            s.push_back(prox_char);     //s = prox_char
-            proximo();
-            if(s.compare(":") == 0){    //se s == ':'
-                if(prox_char == '='){
-                    s.push_back('=');   //s = ':='
-                    proximo();
-                }
-            }
-            simbolo = codigo(s,1);
-            //cout << " " + simbolo + " ";
-        //palavra reservada ou identificador
-        }else if(isalpha(prox_char)){       //se prox_char é uma letra
-            do{
-                atomo.push_back(prox_char);
-                proximo();
-            }while(isalnum(prox_char));     //enquanto prox_char é uma letra ou um numero
-            //arquivo.unget();                //volta o ponteiro
-            if(reservadas.find(atomo) != reservadas.end())  //se atomo é uma palavra reservada
-                simbolo = codigo(atomo,0);
-            else
-                simbolo = atomo;            //identificador
-        //numero
-        }else if(isdigit(prox_char)){       //se prox_char é um digito
-            do{
-                atomo.push_back(prox_char);
-                proximo();
-            }while(isdigit(prox_char));
-            if(isalpha(prox_char)){         //se prox_char é uma letra
-                erro(1);
-            }
-            //arquivo.unget();                //volta o ponteiro
-            simbolo = atomo;                //numero
-        }else{
-            erro(2);
-        }
-        //cout << simbolo + " " << flush;
-        printf("%s ",simbolo.c_str());
-        if(pula_linha){
-            printf("\n%d ",linha);
-            pula_linha = false;
-        }
+    while(!terminar){
+        analisador_lexico();
     }
     arquivo.close();
+    fclose(out);
 }
